@@ -139,38 +139,8 @@ export default function ChatUI() {
     }
 
     if (data.actionType === 'SWAP') {
-      const [quote, setQuote] = useState<any>(fetchedData ?? null);
-      const [isFetchingQuote, setIsFetchingQuote] = useState(!fetchedData && !isCompleted && !isCancelled);
       const [isExecutingSwap, setIsExecutingSwap] = useState(false);
-      
-      useEffect(() => {
-        if (data.parameters?.amount && data.parameters?.tokenTo && !fetchedData && !isCompleted && !isCancelled) {
-          const fetchJupiterQuote = async () => {
-            try {
-              const inputMint = TOKENS[data.parameters.tokenFrom?.toUpperCase() || 'SOL'];
-              const outputMint = TOKENS[data.parameters.tokenTo?.toUpperCase() || 'USDC'];
-              if (!inputMint || !outputMint) throw new Error("Invalid tokens");
-              const parsedAmount = parseFloat(data.parameters.amount.toString());
-              const amountLamports = Math.floor(parsedAmount * 1_000_000_000);
-              const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountLamports}&slippageBps=50`);
-              const quoteResponse = await response.json();
-              if (quoteResponse.error) throw new Error(quoteResponse.error);
-              setQuote(quoteResponse);
-              updateHistoryData(msgIndex, { fetchedData: quoteResponse });
-            } catch (error) { 
-              const parsedAmount = parseFloat(data.parameters.amount?.toString() || "0");
-              const isToUSDC = data.parameters.tokenTo?.toUpperCase() === 'USDC';
-              const mockOutAmount = Math.floor(parsedAmount * (isToUSDC ? 145.20 : 0.0068) * 1_000_000);
-              const mockQuote = { outAmount: mockOutAmount.toString(), isMock: true };
-              setQuote(mockQuote);
-              updateHistoryData(msgIndex, { fetchedData: mockQuote });
-            } finally { setIsFetchingQuote(false); }
-          };
-          fetchJupiterQuote();
-        }
-      }, [data.parameters?.amount, data.parameters?.tokenFrom, data.parameters?.tokenTo, fetchedData, isCancelled, isCompleted, msgIndex]);
-
-      const expectedOutput = quote?.outAmount ? (parseInt(quote.outAmount) / 1_000_000).toFixed(4) : (quote?.error ? "Error" : "...");
+      const expectedOutput = data.parameters.receiveAmount || "0";
 
       const handleExecuteSwap = async () => {
         if (!publicKey) return alert("Please connect your Phantom wallet!");
@@ -193,10 +163,10 @@ export default function ChatUI() {
            <div className="flex items-center gap-3 mb-4"><div className={`p-2 rounded-lg ${isCancelled ? 'bg-red-900/30' : isCompleted ? 'bg-gray-800' : 'bg-green-500/20'}`}><ArrowRightLeft className={`w-5 h-5 ${isCancelled ? 'text-red-400' : isCompleted ? 'text-gray-500' : 'text-green-400'}`} /></div><h3 className={`text-lg font-bold ${isCancelled ? 'text-red-400' : isCompleted ? 'text-gray-400' : 'text-white'}`}>Jupiter Swap</h3></div>
            <div className="flex items-center justify-between mb-6 p-4 bg-black/50 rounded-lg border border-gray-800">
              <div className="text-center"><p className="text-xs text-gray-500 mb-1">Pay</p><p className={`font-bold ${isCancelled ? 'text-red-300' : isCompleted ? 'text-gray-500' : 'text-white'}`}>{data.parameters.amount || '0'} {data.parameters.tokenFrom?.toUpperCase() || 'SOL'}</p></div>
-             {isFetchingQuote ? <Loader2 className="w-4 h-4 text-green-500 animate-spin" /> : <ArrowRightLeft className="w-4 h-4 text-gray-600" />}
-             <div className="text-center"><p className="text-xs text-gray-500 mb-1">Receive</p><p className={`font-bold ${isCancelled ? 'text-red-300' : isCompleted ? 'text-gray-500' : quote?.error ? 'text-red-400' : 'text-green-400'}`}>{expectedOutput} {data.parameters.tokenTo?.toUpperCase() || 'USDC'}</p></div>
+             <ArrowRightLeft className="w-4 h-4 text-gray-600" />
+             <div className="text-center"><p className="text-xs text-gray-500 mb-1">Receive</p><p className={`font-bold ${isCancelled ? 'text-red-300' : isCompleted ? 'text-gray-500' : 'text-green-400'}`}>{expectedOutput} {data.parameters.tokenTo?.toUpperCase() || 'USDC'}</p></div>
            </div>
-           <button onClick={handleExecuteSwap} disabled={isCancelled || isCompleted || isFetchingQuote || quote?.error || isExecutingSwap} className={`w-full py-3 rounded-lg font-bold border transition-colors flex items-center justify-center gap-2 ${isCancelled ? 'bg-red-950/30 text-red-400 border-red-900/50 cursor-not-allowed' : isCompleted ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500 text-white disabled:opacity-50'}`}>
+           <button onClick={handleExecuteSwap} disabled={isCancelled || isCompleted || isExecutingSwap} className={`w-full py-3 rounded-lg font-bold border transition-colors flex items-center justify-center gap-2 ${isCancelled ? 'bg-red-950/30 text-red-400 border-red-900/50 cursor-not-allowed' : isCompleted ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500 text-white disabled:opacity-50'}`}>
              {isExecutingSwap ? <Loader2 className="w-4 h-4 animate-spin"/> : isCancelled ? 'Cancelled' : isCompleted ? 'Completed' : 'Execute on Mainnet'}
            </button>
          </div>
